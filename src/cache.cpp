@@ -55,6 +55,8 @@ void Cache::initCacheStats(AggregateStat* cacheStat) {
 }
 
 uint64_t Cache::access(MemReq& req) {
+    /* A memory request has a "cycle". 
+       Is this the initial cycle of the request, when the request should be started, an estimated time for the request to complete? */
     uint64_t respCycle = req.cycle;
     bool skipAccess = cc->startAccess(req); //may need to skip access due to races (NOTE: may change req.type!)
     if (likely(!skipAccess)) {
