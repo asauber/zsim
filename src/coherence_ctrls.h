@@ -304,6 +304,8 @@ class MESICC : public CC {
 
         //Access methods
         bool startAccess(MemReq& req) {
+            /* startAccess requires that a memory request be either a GET or PUT
+               and either be Shared or Exclusive */
             assert((req.type == GETS) || (req.type == GETX) || (req.type == PUTS) || (req.type == PUTX));
 
             /* Child should be locked when called. We do hand-over-hand locking when going

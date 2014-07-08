@@ -55,9 +55,11 @@ void Cache::initCacheStats(AggregateStat* cacheStat) {
 }
 
 uint64_t Cache::access(MemReq& req) {
-    /* A memory request has a "cycle". 
-       Is this the initial cycle of the request, when the request should be started, an estimated time for the request to complete? */
+    /* A memory request has a "cycle". This is the cycle at which the request arrives at this cache */
     uint64_t respCycle = req.cycle;
+    /* Begin this cache access by calling the cache controller's startAccess method.
+       It returns a bool indicating if we should skip access.
+       This does the initial locking and detects address races. */
     bool skipAccess = cc->startAccess(req); //may need to skip access due to races (NOTE: may change req.type!)
     if (likely(!skipAccess)) {
         bool updateReplacement = (req.type == GETS) || (req.type == GETX);
@@ -77,6 +79,7 @@ uint64_t Cache::access(MemReq& req) {
             array->postinsert(req.lineAddr, &req, lineId); //do the actual insertion. NOTE: Now we must split insert into a 2-phase thing because cc unlocks us.
         }
 
+        /* Determine the cycle at which the cache access completed */
         respCycle = cc->processAccess(req, lineId, respCycle);
     }
 
@@ -84,6 +87,8 @@ uint64_t Cache::access(MemReq& req) {
 
     assert_msg(respCycle >= req.cycle, "[%s] resp < req? 0x%lx type %s childState %s, respCycle %ld reqCycle %ld",
             name.c_str(), req.lineAddr, AccessTypeName(req.type), MESIStateName(*req.state), respCycle, req.cycle);
+
+    /* Return the cycle at which the cache access completed */
     return respCycle;
 }
 
