@@ -1,0 +1,6 @@
+CC="g++"
+
+CFLAGS="--std=c++0x -DTARGET_LINUX -DTARGET_IA32E -DHOST_IA32E -I/home/ajs/src/pin/pin-2.13-62732-gcc.4.4.7-linux/extras/xed2-intel64/include -I/home/ajs/src/pin/pin-2.13-62732-gcc.4.4.7-linux/source/include/pin -I/home/ajs/src/pin/pin-2.13-62732-gcc.4.4.7-linux/source/include/pin/gen -I/home/ajs/src/pin/pin-2.13-62732-gcc.4.4.7-linux/extras/components/include"
+
+CTAGSFLAGS="--language-force=c++"
+
