@@ -222,6 +222,7 @@ class Scheduler : public GlobAlloc, public Callee {
             //   getpid() returns the parent's pid (getpid() caches, and I'm
             //   guessing it hasn't flushed its cached pid at this point)
             gidMap[gid] = new ThreadInfo(gid, syscall(SYS_getpid), syscall(SYS_gettid), mask);
+            // Increment the "threads created" counter
             threadsCreated.inc();
             futex_unlock(&schedLock);
         }

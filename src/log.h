@@ -45,7 +45,11 @@ void __log_unlock();
 #define PANIC_EXIT_CODE (112)
 
 // assertions are often frequently executed but never inlined. Might as well tell the compiler about it
+/* ajs : __builtin_expect is a GCC builting function, it allows the programmer to indicate an expected
+   return value for the purposes of optimizing branch prediction */
+// ajs : Wrap a boolean expression that determines a branch in this macro if we expect it to be true
 #define likely(x)       __builtin_expect((x), 1)
+// ajs : Wrap a boolean expression that determines a branch in this macro if we expect it to be false
 #define unlikely(x)     __builtin_expect((x), 0)
 
 typedef enum {

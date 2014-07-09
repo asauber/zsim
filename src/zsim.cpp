@@ -243,6 +243,7 @@ VOID NOPRecordBranch(THREADID tid, ADDRINT addr, BOOL taken, ADDRINT takenNpc, A
 VOID NOPPredLoadStoreSingle(THREADID tid, ADDRINT addr, BOOL pred) {}
 
 // FF is basically NOP except for basic blocks
+// ajs : FF stands for "Fast Forward"
 VOID FFBasicBlock(THREADID tid, ADDRINT bblAddr, BblInfo* bblInfo) {
     if (unlikely(!procTreeNode->isInFastForward())) {
         SimThreadStart(tid);
@@ -590,13 +591,26 @@ VOID Instruction(INS ins) {
 }
 
 
-VOID Trace(TRACE trace, VOID *v) {
+VOID Trace (TRACE trace, VOID *v) {
+    // ajs : This function contains the actual instruction level instrumentation
+
+    // Perform this step if we are not in fast-forward
+    // Also perform this step if ffReinstrument is false
     if (!procTreeNode->isInFastForward() || !zinfo->ffReinstrument) {
-        // Visit every basic block in the trace
+        // Iterate through every basic block in the trace
+        // A basic block is a sequence of instructions 
         for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
             BblInfo* bblInfo = Decoder::decodeBbl(bbl, zinfo->oooDecode);
-            BBL_InsertCall(bbl, IPOINT_BEFORE /*could do IPOINT_ANYWHERE if we redid load and store simulation in OOO*/, (AFUNPTR)IndirectBasicBlock, IARG_FAST_ANALYSIS_CALL,
-                 IARG_THREAD_ID, IARG_ADDRINT, BBL_Address(bbl), IARG_PTR, bblInfo, IARG_END);
+            BBL_InsertCall(bbl,
+                           // could do IPOINT_ANYWHERE if we redid load and store simulation in OOO
+                           IPOINT_BEFORE,
+                           (AFUNPTR)IndirectBasicBlock, IARG_FAST_ANALYSIS_CALL,
+                           IARG_THREAD_ID,
+                           // This is an Intel varargs style, a (key : value) pair with successive
+                           // arguments
+                           IARG_ADDRINT, BBL_Address(bbl),
+                           IARG_PTR, bblInfo,
+                           IARG_END);
         }
     }
 
