@@ -515,75 +515,156 @@ uint32_t TakeBarrier(uint32_t tid, uint32_t cid) {
 
 /* ===================================================================== */
 
-#if 0
-static void PrintIp(THREADID tid, ADDRINT ip) {
-    if (zinfo->globPhaseCycles > 1000000000L /*&& zinfo->globPhaseCycles < 1000030000L*/) {
-        info("[%d] %ld 0x%lx", tid, zinfo->globPhaseCycles, ip);
-    }
+#if 1
+static void PrintIp(THREADID tid, ADDRINT ip, ADDRINT rax) {
+  info("[%d] %ld 0x%lx", tid, zinfo->globPhaseCycles, ip);
+  info("[rax] 0x%lx", rax);
 }
 #endif
 
 VOID Instruction(INS ins) {
-    //Uncomment to print an instruction trace
-    //INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)PrintIp, IARG_THREAD_ID, IARG_REG_VALUE, REG_INST_PTR, IARG_END);
+    //Uncomment this to print an instruction trace
+    #if 1
+    INS_InsertCall(ins,
+                   IPOINT_BEFORE,
+                   (AFUNPTR)PrintIp,
+                   IARG_THREAD_ID,
+                   IARG_REG_VALUE, REG_INST_PTR,
+                   IARG_REG_VALUE, REG_RAX,
+                   IARG_END);
+    #endif
 
     if (!procTreeNode->isInFastForward() || !zinfo->ffReinstrument) {
         AFUNPTR LoadFuncPtr = (AFUNPTR) IndirectLoadSingle;
         AFUNPTR StoreFuncPtr = (AFUNPTR) IndirectStoreSingle;
 
+        // Predicated function pointer load
         AFUNPTR PredLoadFuncPtr = (AFUNPTR) IndirectPredLoadSingle;
         AFUNPTR PredStoreFuncPtr = (AFUNPTR) IndirectPredStoreSingle;
 
         if (INS_IsMemoryRead(ins)) {
             if (!INS_IsPredicated(ins)) {
-                INS_InsertCall(ins, IPOINT_BEFORE, LoadFuncPtr, IARG_FAST_ANALYSIS_CALL, IARG_THREAD_ID, IARG_MEMORYREAD_EA, IARG_END);
+                INS_InsertCall(ins,
+                               IPOINT_BEFORE,
+                               LoadFuncPtr,
+                               IARG_FAST_ANALYSIS_CALL,
+                               IARG_THREAD_ID,
+                               IARG_MEMORYREAD_EA,
+                               IARG_END);
             } else {
-                INS_InsertCall(ins, IPOINT_BEFORE, PredLoadFuncPtr, IARG_FAST_ANALYSIS_CALL, IARG_THREAD_ID, IARG_MEMORYREAD_EA, IARG_EXECUTING, IARG_END);
+                INS_InsertCall(ins,
+                               IPOINT_BEFORE,
+                               PredLoadFuncPtr,
+                               IARG_FAST_ANALYSIS_CALL,
+                               IARG_THREAD_ID,
+                               IARG_MEMORYREAD_EA,
+                               IARG_EXECUTING,
+                               IARG_END);
             }
         }
 
         if (INS_HasMemoryRead2(ins)) {
             if (!INS_IsPredicated(ins)) {
-                INS_InsertCall(ins, IPOINT_BEFORE, LoadFuncPtr, IARG_FAST_ANALYSIS_CALL, IARG_THREAD_ID, IARG_MEMORYREAD2_EA, IARG_END);
+                INS_InsertCall(ins,
+                               IPOINT_BEFORE,
+                               LoadFuncPtr,
+                               IARG_FAST_ANALYSIS_CALL,
+                               IARG_THREAD_ID,
+                               IARG_MEMORYREAD2_EA,
+                               IARG_END);
             } else {
-                INS_InsertCall(ins, IPOINT_BEFORE, PredLoadFuncPtr, IARG_FAST_ANALYSIS_CALL, IARG_THREAD_ID, IARG_MEMORYREAD2_EA, IARG_EXECUTING, IARG_END);
+                INS_InsertCall(ins,
+                               IPOINT_BEFORE,
+                               PredLoadFuncPtr,
+                               IARG_FAST_ANALYSIS_CALL,
+                               IARG_THREAD_ID,
+                               IARG_MEMORYREAD2_EA,
+                               IARG_EXECUTING,
+                               IARG_END);
             }
         }
 
         if (INS_IsMemoryWrite(ins)) {
             if (!INS_IsPredicated(ins)) {
-                INS_InsertCall(ins, IPOINT_BEFORE,  StoreFuncPtr, IARG_FAST_ANALYSIS_CALL, IARG_THREAD_ID, IARG_MEMORYWRITE_EA, IARG_END);
+                INS_InsertCall(ins,
+                               IPOINT_BEFORE,
+                               StoreFuncPtr,
+                               IARG_FAST_ANALYSIS_CALL,
+                               IARG_THREAD_ID,
+                               IARG_MEMORYWRITE_EA,
+                               IARG_END);
             } else {
-                INS_InsertCall(ins, IPOINT_BEFORE,  PredStoreFuncPtr, IARG_FAST_ANALYSIS_CALL, IARG_THREAD_ID, IARG_MEMORYWRITE_EA, IARG_EXECUTING, IARG_END);
+                INS_InsertCall(ins,
+                               IPOINT_BEFORE,
+                               PredStoreFuncPtr,
+                               IARG_FAST_ANALYSIS_CALL,
+                               IARG_THREAD_ID,
+                               IARG_MEMORYWRITE_EA,
+                               IARG_EXECUTING,
+                               IARG_END);
             }
         }
 
         // Instrument only conditional branches
         if (INS_Category(ins) == XED_CATEGORY_COND_BR) {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) IndirectRecordBranch, IARG_FAST_ANALYSIS_CALL, IARG_THREAD_ID,
-                    IARG_INST_PTR, IARG_BRANCH_TAKEN, IARG_BRANCH_TARGET_ADDR, IARG_FALLTHROUGH_ADDR, IARG_END);
+            INS_InsertCall(ins,
+                           IPOINT_BEFORE,
+                           (AFUNPTR) IndirectRecordBranch,
+                           IARG_FAST_ANALYSIS_CALL,
+                           IARG_THREAD_ID,
+                           IARG_INST_PTR,
+                           IARG_BRANCH_TAKEN,
+                           IARG_BRANCH_TARGET_ADDR,
+                           IARG_FALLTHROUGH_ADDR,
+                           IARG_END);
         }
     }
 
-    //Intercept and process magic ops
-    /* xchg %rcx, %rcx is our chosen magic op. It is effectively a NOP, but it
-     * is never emitted by any x86 compiler, as they use other (recommended) nop
-     * instructions or sequences.
+    /* Intercept and process magic ops
+     * xchg %rcx, %rcx is our chosen magic op. It is effectively a NOP, but it
+     * is never emitted by any x86 compiler, as they use other (recommended)
+     * nop instructions or sequences.
      */
-    if (INS_IsXchg(ins) && INS_OperandReg(ins, 0) == REG_RCX && INS_OperandReg(ins, 1) == REG_RCX) {
+    if (INS_IsXchg(ins) &&
+        INS_OperandReg(ins, 0) == REG_RCX &&
+        INS_OperandReg(ins, 1) == REG_RCX) {
         //info("Instrumenting magic op");
-        INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) HandleMagicOp, IARG_THREAD_ID, IARG_REG_VALUE, REG_ECX, IARG_END);
+            INS_InsertCall(ins,
+                           IPOINT_BEFORE,
+                           (AFUNPTR) HandleMagicOp,
+                           IARG_THREAD_ID,
+                           IARG_REG_VALUE, REG_ECX,
+                           IARG_END);
     }
 
     if (INS_Opcode(ins) == XED_ICLASS_CPUID) {
-       INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) FakeCPUIDPre, IARG_THREAD_ID, IARG_REG_VALUE, REG_EAX, IARG_REG_VALUE, REG_ECX, IARG_END);
-       INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR) FakeCPUIDPost, IARG_THREAD_ID, IARG_REG_REFERENCE, REG_EAX,
-               IARG_REG_REFERENCE, REG_EBX, IARG_REG_REFERENCE, REG_ECX, IARG_REG_REFERENCE, REG_EDX, IARG_END);
+        INS_InsertCall(ins,
+                       IPOINT_BEFORE,
+                       (AFUNPTR) FakeCPUIDPre,
+                       IARG_THREAD_ID,
+                       IARG_REG_VALUE, REG_EAX,
+                       IARG_REG_VALUE, REG_ECX,
+                       IARG_END);
+        INS_InsertCall(ins,
+                       IPOINT_AFTER,
+                       (AFUNPTR) FakeCPUIDPost,
+                       IARG_THREAD_ID,
+                       IARG_REG_REFERENCE, REG_EAX,
+                       IARG_REG_REFERENCE, REG_EBX,
+                       IARG_REG_REFERENCE, REG_ECX,
+                       IARG_REG_REFERENCE, REG_EDX,
+                       IARG_END);
     }
 
     if (INS_IsRDTSC(ins)) {
         //No pre; note that this also instruments RDTSCP
-        INS_InsertCall(ins, IPOINT_AFTER, (AFUNPTR) FakeRDTSCPost, IARG_THREAD_ID, IARG_REG_REFERENCE, REG_EAX, IARG_REG_REFERENCE, REG_EDX, IARG_END);
+        INS_InsertCall(ins,
+                       IPOINT_AFTER,
+                       (AFUNPTR) FakeRDTSCPost,
+                       IARG_THREAD_ID,
+                       IARG_REG_REFERENCE, REG_EAX,
+                       IARG_REG_REFERENCE, REG_EDX,
+                       IARG_END);
     }
 
     //Must run for every instruction
@@ -592,10 +673,10 @@ VOID Instruction(INS ins) {
 
 
 VOID Trace (TRACE trace, VOID *v) {
-    // ajs : This function contains the actual instruction level instrumentation
+    // ajs: This function contains the actual instruction level instrumentation
 
-    // Perform this step if we are not in fast-forward
-    // Also perform this step if ffReinstrument is false
+    // ajs: Perform this step if we are not in fast-forward
+    // ajs: Also perform this step if ffReinstrument is false
     if (!procTreeNode->isInFastForward() || !zinfo->ffReinstrument) {
         // Iterate through every basic block in the trace
         // A basic block is a sequence of instructions 
@@ -798,23 +879,41 @@ VOID VdsoRetPoint(THREADID tid, REG* raxPtr) {
 
 // Instrumentation function, called for EVERY instruction
 VOID VdsoInstrument(INS ins) {
-    ADDRINT insAddr = INS_Address(ins);
-    if (unlikely(insAddr >= vdsoStart && insAddr < vdsoEnd)) {
-        if (vdsoEntryMap.find(insAddr) != vdsoEntryMap.end()) {
-            VdsoFunc func = vdsoEntryMap[insAddr];
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) VdsoEntryPoint, IARG_THREAD_ID, IARG_UINT32, (uint32_t)func, IARG_REG_VALUE, REG_RDI, IARG_REG_VALUE, REG_RSI, IARG_END);
-        } else if (INS_IsCall(ins)) {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) VdsoCallPoint, IARG_THREAD_ID, IARG_END);
-        } else if (INS_IsRet(ins)) {
-            INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR) VdsoRetPoint, IARG_THREAD_ID, IARG_REG_REFERENCE, REG_RAX /* return val */, IARG_END);
-        }
+  ADDRINT insAddr = INS_Address(ins);
+  if (unlikely(insAddr >= vdsoStart && insAddr < vdsoEnd)) {
+    if (vdsoEntryMap.find(insAddr) != vdsoEntryMap.end()) {
+        VdsoFunc func = vdsoEntryMap[insAddr];
+      INS_InsertCall(ins,
+                     IPOINT_BEFORE,
+                     (AFUNPTR) VdsoEntryPoint,
+                     IARG_THREAD_ID,
+                     IARG_UINT32, (uint32_t)func,
+                     IARG_REG_VALUE, REG_RDI,
+                     IARG_REG_VALUE, REG_RSI,
+                     IARG_END);
+    } else if (INS_IsCall(ins)) {
+      INS_InsertCall(ins,
+                     IPOINT_BEFORE,
+                     (AFUNPTR) VdsoCallPoint,
+                     IARG_THREAD_ID,
+                     IARG_END);
+    } else if (INS_IsRet(ins)) {
+      INS_InsertCall(ins,
+                     IPOINT_BEFORE,
+                     (AFUNPTR) VdsoRetPoint,
+                     IARG_THREAD_ID,
+                     IARG_REG_REFERENCE, REG_RAX /* return val */,
+                     IARG_END);
     }
+  }
 
-    //Warn on the first vsyscall code translation
-    if (unlikely(insAddr >= vsyscallStart && insAddr < vsyscallEnd && !vsyscallWarned)) {
-        warn("Instrumenting vsyscall page code --- this process executes vsyscalls, which zsim does not virtualize!");
-        vsyscallWarned = true;
-    }
+  //Warn on the first vsyscall code translation
+  if (unlikely(insAddr >= vsyscallStart && insAddr < vsyscallEnd &&
+      !vsyscallWarned)) {
+    warn("Instrumenting vsyscall page code --- this process executes "
+         "vsyscalls, which zsim does not virtualize!");
+    vsyscallWarned = true;
+  }
 }
 
 /* ===================================================================== */
