@@ -237,7 +237,8 @@ void LaunchProcess(uint32_t procIdx) {
         childInfo[procIdx].status = PS_RUNNING;
     } else { //child
         // Set the child's vars and get the command
-        // NOTE: We set the vars first so that, when parsing the command, wordexp takes those vars into account
+        // NOTE: We set the vars first so that, when parsing the command,
+        // wordexp takes those vars into account
         pinCmd->setEnvVars(procIdx);
         const char* inputFile;
         g_vector<g_string> args = pinCmd->getFullCmdArgs(procIdx, &inputFile);

@@ -104,6 +104,8 @@ BaseCache* BuildCacheBank(Config& config, const string& prefix, g_string& name, 
         panic("%s: Invalid array type %s", name.c_str(), arrayType.c_str());
     }
 
+    info("%s: Array Type %s", name.c_str(), arrayType.c_str());
+
     // Power of two sets check; also compute setBits, will be useful later
     uint32_t numSets = numLines/ways;
     uint32_t setBits = 31 - __builtin_clz(numSets);
@@ -268,11 +270,13 @@ BaseCache* BuildCacheBank(Config& config, const string& prefix, g_string& name, 
         } else {
             panic("Invalid cache type %s", type.c_str());
         }
+        info("%s: Built %s cache", name.c_str(), type.c_str());
     } else {
         //Filter cache optimization
         if (type != "Simple") panic("Terminal cache %s can only have type == Simple", name.c_str());
         if (arrayType != "SetAssoc" || hashType != "None" || replType != "LRU") panic("Invalid FilterCache config %s", name.c_str());
         cache = new FilterCache(numSets, numLines, cc, array, rp, accLat, invLat, name);
+        info("%s: Built FilterCache", name.c_str());
     }
 
 #if 0

@@ -37,8 +37,17 @@ class TimingCoreEvent : public TimingEvent {
         CoreRecorder* cRec;
 
     public:
-        //NOTE: Only the first TimingCoreEvent after a thread join needs to be in a domain, hence the default parameter. Because these are inherently sequential and have a fixed delay, subsequent events can inherit the parent's domain, reducing domain xings and improving slack and performance
-        TimingCoreEvent(uint64_t _delay, uint64_t _origStartCycle, CoreRecorder* _cRec, int32_t domain = -1) : TimingEvent(0, _delay, domain), origStartCycle(_origStartCycle), cRec(_cRec) {}
+        /* NOTE: Only the first TimingCoreEvent after a thread join needs to be
+           in a domain, hence the default parameter. Because these are
+           inherently sequential and have a fixed delay, subsequent events can
+           inherit the parent's domain, reducing domain xings and improving
+           slack and performance */
+        TimingCoreEvent(uint64_t _delay, uint64_t _origStartCycle,
+                        CoreRecorder* _cRec, int32_t domain = -1)
+            : TimingEvent(0, _delay, domain),
+              origStartCycle(_origStartCycle),
+              cRec(_cRec) {
+        }
 
         void simulate(uint64_t _startCycle) {
             startCycle = _startCycle;
@@ -50,16 +59,15 @@ class TimingCoreEvent : public TimingEvent {
 };
 
 CoreRecorder::CoreRecorder(uint32_t _domain, g_string& _name)
-    : domain(_domain), name(_name + "-rec")
-{
-    prevRespEvent = NULL;
-    state = HALTED;
-    gapCycles = 0;
-    eventRecorder.setGapCycles(gapCycles);
+    : domain(_domain), name(_name + "-rec") {
+  prevRespEvent = NULL;
+  state = HALTED;
+  gapCycles = 0;
+  eventRecorder.setGapCycles(gapCycles);
 
-    lastUnhaltedCycle = 0;
-    totalGapCycles = 0;
-    totalHaltedCycles = 0;
+  lastUnhaltedCycle = 0;
+  totalGapCycles = 0;
+  totalHaltedCycles = 0;
 }
 
 

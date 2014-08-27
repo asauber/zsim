@@ -515,7 +515,7 @@ uint32_t TakeBarrier(uint32_t tid, uint32_t cid) {
 
 /* ===================================================================== */
 
-#if 1
+#if 0
 static void PrintIp(THREADID tid, ADDRINT ip, ADDRINT rax) {
   info("[%d] %ld 0x%lx", tid, zinfo->globPhaseCycles, ip);
   info("[rax] 0x%lx", rax);
@@ -524,7 +524,7 @@ static void PrintIp(THREADID tid, ADDRINT ip, ADDRINT rax) {
 
 VOID Instruction(INS ins) {
     //Uncomment this to print an instruction trace
-    #if 1
+    #if 0
     INS_InsertCall(ins,
                    IPOINT_BEFORE,
                    (AFUNPTR)PrintIp,
@@ -672,35 +672,40 @@ VOID Instruction(INS ins) {
 }
 
 
-VOID Trace (TRACE trace, VOID *v) {
-    // ajs: This function contains the actual instruction level instrumentation
+VOID Trace(TRACE trace, VOID *v) {
+  // ajs: This function contains the actual instruction level instrumentation
 
-    // ajs: Perform this step if we are not in fast-forward
-    // ajs: Also perform this step if ffReinstrument is false
-    if (!procTreeNode->isInFastForward() || !zinfo->ffReinstrument) {
-        // Iterate through every basic block in the trace
-        // A basic block is a sequence of instructions 
-        for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-            BblInfo* bblInfo = Decoder::decodeBbl(bbl, zinfo->oooDecode);
-            BBL_InsertCall(bbl,
-                           // could do IPOINT_ANYWHERE if we redid load and store simulation in OOO
-                           IPOINT_BEFORE,
-                           (AFUNPTR)IndirectBasicBlock, IARG_FAST_ANALYSIS_CALL,
-                           IARG_THREAD_ID,
-                           // This is an Intel varargs style, a (key : value) pair with successive
-                           // arguments
-                           IARG_ADDRINT, BBL_Address(bbl),
-                           IARG_PTR, bblInfo,
-                           IARG_END);
-        }
-    }
-
-    //Instruction instrumentation now here to ensure proper ordering
+  /* ajs: Perform this step if we are not in fast-forward. Also perform this
+     step if ffReinstrument is false. This is the entry point from PIN into
+     the core simulation! A basic block is a sequence of instructions that
+     are iterated-through and executed by the core simulation by the core's
+     "bbl" function.
+  */
+  if (!procTreeNode->isInFastForward() || !zinfo->ffReinstrument) {
+    // Iterate through every basic block in the trace
+    // A basic block is a sequence of instructions 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-        for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-            Instruction(ins);
-        }
+      BblInfo* bblInfo = Decoder::decodeBbl(bbl, zinfo->oooDecode);
+      BBL_InsertCall(bbl,
+                     /* could do IPOINT_ANYWHERE if we redid load and store
+                        simulation in OOO */
+                     IPOINT_BEFORE,
+                     (AFUNPTR)IndirectBasicBlock, IARG_FAST_ANALYSIS_CALL,
+                     IARG_THREAD_ID,
+                     /* This is an Intel varargs style, a (key : value) pair
+                        with successive arguments */
+                     IARG_ADDRINT, BBL_Address(bbl),
+                     IARG_PTR, bblInfo,
+                     IARG_END);
     }
+  }
+
+  //Instruction instrumentation now here to ensure proper ordering
+  for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
+    for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
+      Instruction(ins);
+    }
+  }
 }
 
 /***** vDSO instrumentation and patching code *****/
